@@ -1,0 +1,703 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Group, Layer, Rect, Stage } from 'react-konva';
+
+import { useInterval } from 'ahooks';
+import { KonvaEventObject } from 'konva/lib/Node';
+import type { Stage as StageType } from 'konva/lib/Stage';
+import useImage from 'use-image';
+
+import {
+  calculateHypotenuse,
+  getTileMapVirtualSize,
+  image2realPos as _image2realPos,
+  real2imagePos as _real2imagePos,
+} from '@/pages/InteractiveMap/utils';
+
+import BaseMap from '../BaseMap';
+import DrawLines from '../DrawLines';
+import Extracts from '../Extracts';
+import Hazards from '../Hazards';
+import Image from '../Image';
+import Labels from '../Labels';
+import LocalTileLayers from '../LocalTileLayers';
+import Locks from '../Locks';
+import LootContainers from '../LootContainers';
+import PlayerLocation from '../PlayerLocation';
+import Ruler from '../Ruler';
+import Spawns from '../Spawns';
+import StationaryWeapons from '../StationaryWeapons';
+import TileLayer from '../TileLayer';
+import { showContextMenu } from '../UI/ContextMenu';
+
+import './style.less';
+
+interface CanvasProps {
+  mapData: InteractiveMap.Data;
+  activeLayer: InteractiveMap.Layer | undefined;
+  markerExtracts: InteractiveMap.Faction[];
+  markerLocks: string[];
+  markerLootKeys: string[];
+  markerSpawns: string[];
+  markerHazards: string[];
+  markerStationaryWeapons: string[];
+  locationScale: boolean;
+  width: number;
+  height: number;
+  resolution: { width: number; height: number };
+  onCursorPositionChange?: (cursorPosition: InteractiveMap.Position2D) => void;
+  onRulerPositionChange?: (rulerPosition: InteractiveMap.Position2D[] | undefined) => void;
+  callbackUtils?: (utils: InteractiveMap.UtilProps) => void;
+}
+
+const Index = (props: CanvasProps & InteractiveMap.DrawProps) => {
+  const {
+    mapData,
+    activeLayer,
+    markerExtracts,
+    markerLocks,
+    markerLootKeys,
+    markerSpawns,
+    markerHazards,
+    markerStationaryWeapons,
+    locationScale,
+    width,
+    height,
+    strokeType,
+    strokeColor,
+    strokeWidth,
+    eraserWidth,
+    resolution,
+    onCursorPositionChange,
+    onRulerPositionChange,
+    callbackUtils,
+  } = props;
+
+  const [mapPosition, setMapPosition] = useState({ x: 0, y: 0 });
+  const [mapMoveStatus, setMapMoveStatus] = useState<Set<'w' | 'a' | 's' | 'd'>>();
+  const mapMoveStatusRef = useRef(mapMoveStatus);
+  const [mapScale, setMapScale] = useState(1);
+  const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
+  const [drawLines, setDrawLines] = useState<InteractiveMap.iMDrawLine[]>([]);
+  const [drawTempPoints, setDrawTempPoints] = useState<number[]>([]);
+  const [rulerPosition, setRulerPosition] = useState<InteractiveMap.Position2D[]>();
+
+  const stageRef = useRef<StageType>(null);
+  const drawTempPointsRef = useRef<number[]>([]);
+  const drawTempPointsRafRef = useRef<number | null>(null);
+  const operationType = useRef<InteractiveMap.OperationType>(-1);
+  const operationContext = useRef(false);
+  const operationInitialStage = useRef<InteractiveMap.Position2D>();
+  const operationInitialScale = useRef(0);
+  const operationInitialVal = useRef([{ x: 0, y: 0, pageX: 0, pageY: 0 }]);
+  const touchTouches = useRef(0);
+
+  const baseMapSrc = mapData.svgPath || '#';
+  const [baseMap, baseMapStatus] = useImage(baseMapSrc, 'anonymous');
+  const isTileOnlyMap =
+    !mapData.svgPath &&
+    (!!mapData.tilePath || !!mapData.localTileLayers || !!mapData.tileMapUnsupported);
+  const tileVirtualSize = useMemo(() => getTileMapVirtualSize(mapData), [mapData]);
+  const virtualImage = useMemo(
+    () =>
+      (tileVirtualSize
+        ? { width: tileVirtualSize.width, height: tileVirtualSize.height }
+        : null),
+    [tileVirtualSize],
+  );
+  let effectiveStatus: 'loaded' | 'loading' | 'failed';
+  if (isTileOnlyMap && tileVirtualSize) {
+    effectiveStatus = 'loaded';
+  } else if (isTileOnlyMap) {
+    effectiveStatus = 'failed';
+  } else {
+    effectiveStatus = baseMapStatus;
+  }
+
+  let baseMapOrVirtual: { width: number; height: number } | typeof baseMap;
+  if (isTileOnlyMap && virtualImage) {
+    baseMapOrVirtual = virtualImage;
+  } else {
+    baseMapOrVirtual = baseMap;
+  }
+  const baseScale = baseMapOrVirtual
+    ? (baseMapOrVirtual.width + baseMapOrVirtual.height) / 1024
+    : 1;
+  const heightRange = useMemo(() => {
+    let _heightRange = [mapData.heightRange?.[0] || -1000, mapData.heightRange?.[1] || 1000];
+    if (activeLayer && activeLayer.extents?.[0]?.height) {
+      _heightRange = activeLayer.extents[0].height;
+    }
+    return _heightRange;
+  }, [activeLayer]);
+
+  const image2realPos = useMemo(() => {
+    return _image2realPos(baseMapOrVirtual ?? undefined, mapData.bounds);
+  }, [baseMapOrVirtual, mapData]);
+  const real2imagePos = useMemo(() => {
+    return _real2imagePos(baseMapOrVirtual ?? undefined, mapData.bounds);
+  }, [baseMapOrVirtual, mapData]);
+
+  const utils = useMemo<InteractiveMap.UtilProps>(() => ({
+    baseMapStatus: effectiveStatus,
+    baseScale,
+    mapScale,
+    activeLayer,
+    heightRange,
+    image2realPos,
+    real2imagePos,
+  }), [
+    effectiveStatus,
+    baseScale,
+    mapScale,
+    activeLayer,
+    heightRange,
+    image2realPos,
+    real2imagePos,
+  ]);
+
+  const scaleAccepted = (_scale: number) => {
+    if (stageRef.current && baseMapOrVirtual) {
+      const scaleX = stageRef.current.width() / baseMapOrVirtual.width;
+      const scaleY = stageRef.current.height() / baseMapOrVirtual.height;
+      const _baseScale = scaleX < scaleY ? scaleX : scaleY;
+      if (_scale < _baseScale / 2) {
+        return false;
+      } else if (_scale > _baseScale * 6) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const updateCursorPosition = () => {
+    const stage = stageRef.current;
+    if (stage) {
+      const position = stage.getPointerPosition();
+      if (position) {
+        const mousePointTo = {
+          x: (position.x - stage.x()) / mapScale,
+          y: (position.y - stage.y()) / mapScale,
+        };
+        setCursorPosition(mousePointTo);
+      }
+    }
+  };
+
+  const handlePlayerLocationChange = (
+    playerLocation: InteractiveMap.Position & { mapId: string },
+  ) => {
+    const { x, z, mapId } = playerLocation;
+    if (stageRef.current && baseMapOrVirtual && mapId === mapData.id) {
+      if (locationScale) {
+        const scaleX = stageRef.current.width() / baseMapOrVirtual.width;
+        const scaleY = stageRef.current.height() / baseMapOrVirtual.height;
+        const _baseScale = scaleX < scaleY ? scaleX : scaleY;
+        const newScale = _baseScale * 3.5;
+        setMapScale(newScale);
+        setMapPosition({
+          x: stageRef.current.width() / 2 - real2imagePos.x(x) * newScale,
+          y: stageRef.current.height() / 2 - real2imagePos.y(z) * newScale,
+        });
+      } else {
+        setMapPosition({
+          x: stageRef.current.width() / 2 - real2imagePos.x(x) * mapScale,
+          y: stageRef.current.height() / 2 - real2imagePos.y(z) * mapScale,
+        });
+      }
+    }
+  };
+
+  const handleMouseDown = (e: KonvaEventObject<MouseEvent>) => {
+    const stage = e.target.getStage();
+    if (stage) {
+      operationType.current = e.evt.button as InteractiveMap.OperationType;
+      if (!operationInitialStage.current) {
+        operationInitialStage.current = { x: stage.x(), y: stage.y() };
+      }
+      if (operationInitialScale.current === 0) {
+        operationInitialScale.current = mapScale;
+      }
+      operationInitialVal.current = [
+        {
+          x: (e.evt.pageX - stage.x()) / operationInitialScale.current,
+          y: (e.evt.pageY - stage.y()) / operationInitialScale.current,
+          pageX: e.evt.pageX,
+          pageY: e.evt.pageY,
+        },
+      ];
+      if (e.evt.button === 2) operationContext.current = true;
+      if (strokeType === 'draw' || strokeType === 'eraser') {
+        const startPoints = [operationInitialVal.current[0].x, operationInitialVal.current[0].y];
+        drawTempPointsRef.current = startPoints;
+        setDrawTempPoints(startPoints);
+      } else if (strokeType === 'ruler' && e.evt.button === 0) {
+        setRulerPosition(undefined);
+      }
+    }
+  };
+
+  const handleTouchStart = (e: KonvaEventObject<TouchEvent>) => {
+    e.evt.preventDefault();
+    const stage = e.target.getStage();
+    if (stage) {
+      if (e.evt.touches.length > touchTouches.current) {
+        touchTouches.current = e.evt.touches.length;
+      }
+      if (!operationInitialStage.current) {
+        operationInitialStage.current = { x: stage.x(), y: stage.y() };
+      }
+      if (operationInitialScale.current === 0) {
+        operationInitialScale.current = mapScale;
+      }
+      const _operationInitialVal = [];
+      for (let i = 0; i < e.evt.touches.length; i++) {
+        const touch = e.evt.touches[i];
+        _operationInitialVal.push({
+          x: (touch.pageX - stage.x()) / operationInitialScale.current,
+          y: (touch.pageY - stage.y()) / operationInitialScale.current,
+          pageX: touch.pageX,
+          pageY: touch.pageY,
+        });
+      }
+      operationInitialVal.current = _operationInitialVal;
+      if (strokeType === 'ruler') setRulerPosition(undefined);
+    }
+    updateCursorPosition();
+  };
+
+  const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
+    if (operationInitialStage.current) {
+      if (operationType.current !== -1) {
+        const final = {
+          x: (e.evt.pageX - operationInitialStage.current.x) / operationInitialScale.current,
+          y: (e.evt.pageY - operationInitialStage.current.y) / operationInitialScale.current,
+          pageX: e.evt.pageX,
+          pageY: e.evt.pageY,
+        };
+        if (strokeType === 'drag' || [1, 2].includes(operationType.current)) {
+          setMapPosition({
+            x:
+              operationInitialStage.current.x +
+              (final.pageX - operationInitialVal.current[0].pageX),
+            y:
+              operationInitialStage.current.y +
+              (final.pageY - operationInitialVal.current[0].pageY),
+          });
+        } else if (strokeType === 'draw' || strokeType === 'eraser') {
+          drawTempPointsRef.current = [...drawTempPointsRef.current, final.x, final.y];
+          if (drawTempPointsRafRef.current == null) {
+            drawTempPointsRafRef.current = requestAnimationFrame(() => {
+              drawTempPointsRafRef.current = null;
+              setDrawTempPoints(drawTempPointsRef.current);
+            });
+          }
+        } else if (strokeType === 'ruler') {
+          setRulerPosition([operationInitialVal.current[0], final]);
+        }
+      }
+    }
+    operationContext.current = false;
+    updateCursorPosition();
+  };
+
+  const handleTouchMove = (e: KonvaEventObject<TouchEvent>) => {
+    e.evt.preventDefault();
+    if (operationInitialStage.current) {
+      if (e.evt.touches.length > touchTouches.current) {
+        touchTouches.current = e.evt.touches.length;
+      }
+      const finals = [];
+      for (let i = 0; i < e.evt.touches.length; i++) {
+        const touch = e.evt.touches[i];
+        finals.push({
+          x: (touch.pageX - operationInitialStage.current.x) / operationInitialScale.current,
+          y: (touch.pageY - operationInitialStage.current.y) / operationInitialScale.current,
+          pageX: touch.pageX,
+          pageY: touch.pageY,
+        });
+      }
+      if (touchTouches.current === 1) {
+        if (strokeType === 'drag') {
+          setMapPosition({
+            x:
+              operationInitialStage.current.x +
+              (finals[0].pageX - operationInitialVal.current[0].pageX),
+            y:
+              operationInitialStage.current.y +
+              (finals[0].pageY - operationInitialVal.current[0].pageY),
+          });
+        } else if (strokeType === 'ruler') {
+          setRulerPosition([operationInitialVal.current[0], finals[0]]);
+        }
+      } else if (touchTouches.current === 2) {
+        const initialHypotenuse = calculateHypotenuse(
+          operationInitialVal.current[0],
+          operationInitialVal.current[1],
+        );
+        const finalHypotenuse = calculateHypotenuse(finals[0], finals[1]);
+        const deltaLength = finalHypotenuse - initialHypotenuse;
+        let newScale = operationInitialScale.current;
+        const scale = 1 + deltaLength / initialHypotenuse;
+        newScale = operationInitialScale.current * scale;
+        if (scaleAccepted(newScale)) {
+          setMapScale(newScale);
+          const centerPoint = {
+            x: (operationInitialVal.current[0].x + operationInitialVal.current[1].x) / 2,
+            y: (operationInitialVal.current[0].y + operationInitialVal.current[1].y) / 2,
+          };
+          setMapPosition({
+            x:
+              (operationInitialVal.current[0].pageX + operationInitialVal.current[1].pageX) / 2 -
+              centerPoint.x * newScale,
+            y:
+              (operationInitialVal.current[0].pageY + operationInitialVal.current[1].pageY) / 2 -
+              centerPoint.y * newScale,
+          });
+        }
+      }
+      updateCursorPosition();
+    }
+  };
+
+  const handleMouseUp = (e: KonvaEventObject<MouseEvent>) => {
+    if (operationContext.current) showContextMenu({ x: e.evt.clientX, y: e.evt.clientY });
+    if (
+      (strokeType === 'draw' || strokeType === 'eraser') &&
+      drawTempPointsRef.current.length > 0
+    ) {
+      const _strokeWidth = strokeType === 'draw' ? strokeWidth : eraserWidth;
+      const data: InteractiveMap.iMDrawLine = {
+        uuid: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        tool: strokeType,
+        mapId: mapData.id,
+        points: drawTempPointsRef.current,
+        strokeType,
+        strokeColor,
+        strokeWidth: _strokeWidth,
+        eraserWidth,
+        member: false,
+        updatedAt: Date.now(),
+      };
+      setDrawLines((prev) => [...prev, data]);
+    }
+    operationInitialStage.current = undefined;
+    operationInitialScale.current = 0;
+    operationInitialVal.current = [{ x: 0, y: 0, pageX: 0, pageY: 0 }];
+    operationType.current = -1;
+    operationContext.current = false;
+    drawTempPointsRef.current = [];
+    setDrawTempPoints([]);
+  };
+
+  const handleTouchEnd = (e: KonvaEventObject<TouchEvent>) => {
+    if (e.evt.touches.length === 0) {
+      operationInitialStage.current = undefined;
+      operationInitialScale.current = 0;
+      operationInitialVal.current = [{ x: 0, y: 0, pageX: 0, pageY: 0 }];
+      touchTouches.current = 0;
+    }
+  };
+
+  const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
+    e.evt.preventDefault();
+    const stage = e.target.getStage();
+    if (stage) {
+      const direction = e.evt.deltaY < 0 ? 1 : -1;
+      const newScale = direction > 0 ? mapScale * 1.2 : mapScale / 1.2;
+      if (scaleAccepted(newScale)) {
+        setMapScale(newScale);
+        const pointer = stage.getPointerPosition();
+        if (pointer) {
+          const mousePointTo = {
+            x: (pointer.x - stage.x()) / mapScale,
+            y: (pointer.y - stage.y()) / mapScale,
+          };
+          const newPos = {
+            x: pointer.x - mousePointTo.x * newScale,
+            y: pointer.y - mousePointTo.y * newScale,
+          };
+          setMapPosition(newPos);
+        }
+      }
+    }
+  };
+
+  const handleContextMenu = (e: KonvaEventObject<PointerEvent>) => {
+    e.evt.preventDefault();
+  };
+
+  useEffect(() => {
+    if (stageRef.current) {
+      if (baseMapOrVirtual && effectiveStatus === 'loaded') {
+        const scaleX = stageRef.current.width() / baseMapOrVirtual.width;
+        const scaleY = stageRef.current.height() / baseMapOrVirtual.height;
+        const newScale = scaleX < scaleY ? scaleX : scaleY;
+        setMapScale(newScale);
+        setMapPosition({
+          x: (stageRef.current.width() - baseMapOrVirtual.width * newScale) / 2,
+          y: (stageRef.current.height() - baseMapOrVirtual.height * newScale) / 2,
+        });
+        setCursorPosition({ x: 0, y: 0 });
+      } else {
+        setMapScale(1);
+        setMapPosition({
+          x: (stageRef.current.width() - width) / 2,
+          y: (stageRef.current.height() - height) / 2,
+        });
+        setCursorPosition({ x: 0, y: 0 });
+        setRulerPosition(undefined);
+      }
+    }
+  }, [baseMapOrVirtual, effectiveStatus, resolution]);
+
+  useEffect(() => {
+    onCursorPositionChange?.(cursorPosition);
+  }, [cursorPosition]);
+
+  useEffect(() => {
+    onRulerPositionChange?.(rulerPosition);
+  }, [rulerPosition]);
+
+  useEffect(() => {
+    callbackUtils?.(utils);
+  }, [
+    effectiveStatus,
+    baseScale,
+    mapScale,
+    activeLayer,
+    heightRange,
+    image2realPos,
+    real2imagePos,
+  ]);
+
+  useEffect(() => {
+    (window as any).forceStageRefresh = () => {
+      if (stageRef.current) {
+        stageRef.current.getLayers().forEach((layer) => layer.draw());
+        stageRef.current.batchDraw();
+      }
+    };
+    return () => {
+      delete (window as any).forceStageRefresh;
+    };
+  }, []);
+
+  useEffect(() => {
+    mapMoveStatusRef.current = mapMoveStatus;
+  }, [mapMoveStatus]);
+
+  useEffect(() => {
+    const keydown = (e: KeyboardEvent) => {
+      const { target } = e;
+      if (target instanceof HTMLElement) {
+        if (target.tagName === 'INPUT') return;
+      }
+      const _mapMoveStatus = new Set(mapMoveStatusRef.current || []);
+      if (!e.ctrlKey && e.key === 'w') {
+        _mapMoveStatus.add('w');
+      } else if (!e.ctrlKey && e.key === 'a') {
+        _mapMoveStatus.add('a');
+      } else if (!e.ctrlKey && e.key === 's') {
+        _mapMoveStatus.add('s');
+      } else if (!e.ctrlKey && e.key === 'd') {
+        _mapMoveStatus.add('d');
+      }
+      setMapMoveStatus(_mapMoveStatus);
+    };
+    const keyup = (e: KeyboardEvent) => {
+      const _mapMoveStatus = new Set(mapMoveStatusRef.current || []);
+      if (!e.ctrlKey && e.key === 'w') {
+        _mapMoveStatus.delete('w');
+      } else if (!e.ctrlKey && e.key === 'a') {
+        _mapMoveStatus.delete('a');
+      } else if (!e.ctrlKey && e.key === 's') {
+        _mapMoveStatus.delete('s');
+      } else if (!e.ctrlKey && e.key === 'd') {
+        _mapMoveStatus.delete('d');
+      }
+      setMapMoveStatus(_mapMoveStatus);
+    };
+    window.addEventListener('keydown', keydown);
+    window.addEventListener('keyup', keyup);
+    return () => {
+      window.removeEventListener('keydown', keydown);
+      window.removeEventListener('keyup', keyup);
+      if (drawTempPointsRafRef.current != null) {
+        cancelAnimationFrame(drawTempPointsRafRef.current);
+      }
+    };
+  }, []);
+
+  useInterval(
+    () => {
+      const _mapPosition = { ...mapPosition };
+      const step = 20;
+      if (mapMoveStatus?.has('w')) {
+        _mapPosition.y -= step;
+      }
+      if (mapMoveStatus?.has('a')) {
+        _mapPosition.x -= step;
+      }
+      if (mapMoveStatus?.has('s')) {
+        _mapPosition.y += step;
+      }
+      if (mapMoveStatus?.has('d')) {
+        _mapPosition.x += step;
+      }
+      if (mapMoveStatus && mapMoveStatus.size > 0) {
+        setMapPosition(_mapPosition);
+      }
+    },
+    mapMoveStatus && mapMoveStatus.size > 0 ? 1000 / 60 : undefined,
+  );
+
+  return (
+    <Stage
+      className="im-stage"
+      width={width}
+      height={height}
+      scale={{ x: mapScale, y: mapScale }}
+      position={mapPosition}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onWheel={handleWheel}
+      onContextMenu={handleContextMenu}
+      ref={stageRef}
+    >
+      <Layer id="im-layer-basemap">
+        <Rect
+          id="im-background"
+          x={0}
+          y={0}
+          width={baseMapOrVirtual?.width ?? width}
+          height={baseMapOrVirtual?.height ?? height}
+          fill="#00000028"
+        />
+        {(() => {
+          const tileOpacity = activeLayer ? 0.1 : 1;
+          if (isTileOnlyMap && tileVirtualSize && mapData.localTileLayers) {
+            return (
+              <LocalTileLayers
+                basePath={mapData.localTileLayers.basePath}
+                layerCount={mapData.localTileLayers.layerCount}
+                gridCols={mapData.localTileLayers.gridCols}
+                gridRows={mapData.localTileLayers.gridRows}
+                tileSize={mapData.localTileLayers.tileSize}
+                flipX={mapData.localTileLayers.flipX}
+                flipY={mapData.localTileLayers.flipY}
+                coordinateRotation={mapData.coordinateRotation}
+                opacity={tileOpacity}
+              />
+            );
+          }
+          if (isTileOnlyMap && tileVirtualSize) {
+            const tileProps = {
+              tileSize: mapData.tileSize ?? 256,
+              minZoom: mapData.minZoom ?? 2,
+              maxZoom: mapData.maxZoom ?? 6,
+              mapScale,
+              mapPosition,
+              resolution,
+              coordinateRotation: mapData.coordinateRotation,
+            };
+            const layersWithTiles = mapData.layers?.filter((l) => l.tilePath) ?? [];
+            return (
+              <>
+                {layersWithTiles.length > 0 ? (
+                  <>
+                    {layersWithTiles
+                      .filter((l) => l.name === 'Technical')
+                      .map((layer) => (
+                        <TileLayer
+                          key={layer.name}
+                          tilePath={layer.tilePath}
+                          {...tileProps}
+                          opacity={activeLayer?.name === layer.name ? 1 : tileOpacity}
+                        />
+                      ))}
+                    <TileLayer
+                      tilePath={mapData.tilePath!}
+                      {...tileProps}
+                      opacity={activeLayer ? tileOpacity : 1}
+                    />
+                    {layersWithTiles
+                      .filter((l) => l.name === 'Second Level')
+                      .map((layer) => (
+                        <TileLayer
+                          key={layer.name}
+                          tilePath={layer.tilePath}
+                          {...tileProps}
+                          opacity={activeLayer?.name === layer.name ? 1 : tileOpacity}
+                        />
+                      ))}
+                  </>
+                ) : (
+                  <TileLayer
+                    tilePath={mapData.tilePath!}
+                    {...tileProps}
+                    opacity={tileOpacity}
+                  />
+                )}
+              </>
+            );
+          }
+          return (
+            <BaseMap
+              id="im-basemap"
+              baseMap={baseMap}
+              activeLayer={activeLayer}
+              status={effectiveStatus}
+              tileOnlyUnsupported={isTileOnlyMap && !tileVirtualSize}
+              coordinateRotation={mapData.coordinateRotation}
+              resolution={{ width, height }}
+            />
+          );
+        })()}
+        {activeLayer && activeLayer.svgPath && <Image id="im-layermap" imageSrc={activeLayer.svgPath} />}
+        <Labels {...utils} labels={mapData.labels} show />
+        <LootContainers {...utils} lootContainers={mapData.lootContainers} show={markerLootKeys} />
+        <StationaryWeapons
+          {...utils}
+          stationaryWeapons={mapData.stationaryWeapons}
+          show={markerStationaryWeapons}
+        />
+        <Spawns {...utils} baseMap={mapData} spawns={mapData.spawns} show={markerSpawns} />
+        <Hazards {...utils} hazards={mapData.hazards} show={markerHazards} />
+        <Extracts {...utils} extracts={mapData.extracts} show={markerExtracts} />
+        <Locks {...utils} locks={mapData.locks} show={markerLocks} />
+        <PlayerLocation
+          {...utils}
+          activeMapId={mapData.id}
+          show={['playerLocation']}
+          onPlayerLocationChange={handlePlayerLocationChange}
+        />
+      </Layer>
+      <Layer>
+        <DrawLines
+          {...utils}
+          cursorPosition={cursorPosition}
+          drawLines={drawLines}
+          strokeType={strokeType}
+          strokeColor={strokeColor}
+          strokeWidth={strokeWidth}
+          eraserWidth={eraserWidth}
+          activeMapId={mapData.id}
+          drawTempPoints={drawTempPoints}
+          show={['drawLine']}
+        />
+      </Layer>
+      <Layer>
+        <Group>
+          <Ruler {...utils} rulerPosition={rulerPosition} />
+        </Group>
+      </Layer>
+    </Stage>
+  );
+};
+
+Index.displayName = 'Canvas';
+export default React.memo(Index);
