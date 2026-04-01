@@ -31,6 +31,16 @@ import { showContextMenu } from '../UI/ContextMenu';
 
 import './style.less';
 
+// Load zoom config
+const zoomConfig = { maxZoomScale: 6, minZoomScale: 0.5 };
+fetch('/big-config.json')
+  .then((r) => r.json())
+  .then((config) => {
+    if (config.maxZoomScale) zoomConfig.maxZoomScale = config.maxZoomScale;
+    if (config.minZoomScale) zoomConfig.minZoomScale = config.minZoomScale;
+  })
+  .catch(() => console.warn('Failed to load zoom config, using defaults'));
+
 interface CanvasProps {
   mapData: InteractiveMap.Data;
   activeLayer: InteractiveMap.Layer | undefined;
@@ -160,9 +170,9 @@ const Index = (props: CanvasProps & InteractiveMap.DrawProps) => {
       const scaleX = stageRef.current.width() / baseMapOrVirtual.width;
       const scaleY = stageRef.current.height() / baseMapOrVirtual.height;
       const _baseScale = scaleX < scaleY ? scaleX : scaleY;
-      if (_scale < _baseScale / 2) {
+      if (_scale < _baseScale * zoomConfig.minZoomScale) {
         return false;
-      } else if (_scale > _baseScale * 6) {
+      } else if (_scale > _baseScale * zoomConfig.maxZoomScale) {
         return false;
       }
     }
