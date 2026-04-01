@@ -19,7 +19,9 @@
 ## ✨ 功能特性
 
 - 🖥️ **原生桌面应用** - 使用 Tauri 构建，安装包小（~5-10MB）
-- 🗺️ **实时交互式地图** - 流畅的地图显示和交互（实验室仅提示不支持；其余地图完整支持）
+- 🗺️ **实时交互式地图** - 流畅的地图显示和交互
+  - **支持地图**（14 张地图）：海关、工厂、工厂-5、归零地、归零地-2、立交桥、灯塔、储备站、海岸线、塔科夫街区、实验室（瓦片地图）、森林
+  - 完整交互功能：标记点、出生点、撤离点、战利品容器、危险区域、门锁
 - 📍 **自动坐标追踪** - 自动获取玩家位置（需配置）
 - 🔄 **自动地图切换** - 根据游戏状态智能切换地图（桌面版由 Rust 监听游戏日志）
 - 🎯 **位置标记** - 标记重要地点和物资点
@@ -37,10 +39,10 @@
 ### 前端
 - **React** 18.2 - UI 框架
 - **TypeScript** 5.1 - 类型安全
-- **Vite** 4.4 - 构建工具
-- **React Konva** - Canvas 渲染
-- **Recoil** - 状态管理
-- **React Router** - 路由导航
+- **Vite** 8.0 - 构建工具（Rolldown 引擎）
+- **React Konva** 18.2 - Canvas 渲染
+- **Recoil** 0.7 - 状态管理
+- **React Router** 6.21 - 路由导航
 
 ### 后端
 - **Rust** - 原生性能
@@ -156,13 +158,22 @@ npm run tauri icon
 tarkov-interactive-map-assistant-desktop/
 ├── src/                    # React 前端代码
 │   ├── pages/             # 页面组件
-│   ├── components/        # 通用组件
+│   │   └── InteractiveMap/  # 主地图界面
+│   ├── components/        # 可复用组件
+│   │   ├── Icon/          # 图标组件
+│   │   ├── ItemPopover/   # 物品弹窗
+│   │   └── Layout/        # 布局组件
+│   ├── data/              # 静态数据
+│   │   └── maps/          # 地图 JSON 数据（14 张地图）
 │   ├── assets/            # 静态资源
+│   │   ├── images/        # 图片和图标
+│   │   └── the-lab-map/   # 实验室瓦片地图资源
+│   ├── i18n/              # 国际化
 │   └── utils/             # 工具函数
 ├── src-tauri/             # Rust 后端代码
 │   ├── src/
 │   │   ├── main.rs       # 入口文件
-│   │   └── lib.rs        # 核心逻辑
+│   │   └── lib.rs        # 核心逻辑（键盘监听、文件系统、游戏日志监听）
 │   ├── icons/            # 应用图标
 │   └── tauri.conf.json   # Tauri 配置
 ├── index.html            # HTML 入口

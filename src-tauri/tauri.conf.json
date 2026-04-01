@@ -50,7 +50,8 @@
           "permissions": [
             "core:default",
             "core:event:allow-listen",
-            "core:event:allow-emit"
+            "core:event:allow-emit",
+            "core:window:allow-start-dragging"
           ]
         }
       ]

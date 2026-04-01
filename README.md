@@ -19,7 +19,9 @@ Escape from Tarkov Interactive Map Assistant Desktop Edition - A native desktop 
 ## ✨ Features
 
 - 🖥️ **Native Desktop App** - Built with Tauri, small installer (~5-10MB)
-- 🗺️ **Real-time Interactive Map** - Smooth map display and interaction (The Lab shows an unsupported notice; other maps full support)
+- 🗺️ **Real-time Interactive Map** - Smooth map display and interaction
+  - **Supported Maps** (14 maps): Customs, Factory, Factory-5, Ground Zero, Ground Zero-2, Interchange, Lighthouse, Reserve, Shoreline, Streets of Tarkov, The Lab (tile-based), Woods
+  - Full interactive features: markers, spawns, extracts, loot containers, hazards, locks
 - 📍 **Auto Coordinate Tracking** - Automatic player location tracking (requires setup)
 - 🔄 **Auto Map Switching** - Smart map switching based on game state (Rust-backed game log watching in desktop)
 - 🎯 **Location Markers** - Mark important locations and loot spots
@@ -37,10 +39,10 @@ Escape from Tarkov Interactive Map Assistant Desktop Edition - A native desktop 
 ### Frontend
 - **React** 18.2 - UI framework
 - **TypeScript** 5.1 - Type safety
-- **Vite** 4.4 - Build tool
-- **React Konva** - Canvas rendering
-- **Recoil** - State management
-- **React Router** - Navigation
+- **Vite** 8.0 - Build tool (Rolldown engine)
+- **React Konva** 18.2 - Canvas rendering
+- **Recoil** 0.7 - State management
+- **React Router** 6.21 - Navigation
 
 ### Backend
 - **Rust** - Native performance
@@ -150,19 +152,28 @@ npm run tauri icon
 
 ```
 tarkov-interactive-map-assistant-desktop/
-├── src/                    # Frontend code
+├── src/                    # React frontend code
 │   ├── pages/             # Page components
-│   ├── components/        # Common components
+│   │   └── InteractiveMap/  # Main map interface
+│   ├── components/        # Reusable components
+│   │   ├── Icon/          # Icon components
+│   │   ├── ItemPopover/   # Item popover
+│   │   └── Layout/        # Layout components
+│   ├── data/              # Static data
+│   │   └── maps/          # Map JSON data (14 maps)
 │   ├── assets/            # Static assets
+│   │   ├── images/        # Images and icons
+│   │   └── the-lab-map/   # Lab tile map assets
+│   ├── i18n/              # Internationalization
 │   └── utils/             # Utility functions
-├── src-tauri/             # Backend code
+├── src-tauri/             # Rust backend code
 │   ├── src/
 │   │   ├── main.rs       # Entry point
-│   │   └── lib.rs        # Core logic
+│   │   └── lib.rs        # Core logic (keyboard listener, file system, game log watcher)
 │   ├── icons/            # App icons
-│   └── tauri.conf.json   # Tauri config
+│   └── tauri.conf.json   # Tauri configuration
 ├── index.html            # HTML entry
-├── vite.config.ts        # Vite config
+├── vite.config.ts        # Vite configuration
 └── package.json          # Dependencies
 ```
 

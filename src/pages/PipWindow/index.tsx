@@ -4,19 +4,34 @@ import './style.less';
 
 const PipWindow = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [opacity, setOpacity] = useState(0.3);
   const [debugInfo, setDebugInfo] = useState('初始化中...');
+
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const response = await fetch('/pip-config.json');
+        const config = await response.json();
+        if (config.pipOpacity) {
+          setOpacity(config.pipOpacity);
+          setDebugInfo(`配置加载成功: opacity=${config.pipOpacity}`);
+        }
+      } catch (err) {
+        console.error('Failed to load config:', err);
+        setDebugInfo(`配置加载失败: ${err}`);
+      }
+    };
+    loadConfig();
+  }, []);
 
   useEffect(() => {
     let unlisten: (() => void) | null = null;
 
     const setupListener = async () => {
       try {
-        setDebugInfo('正在设置事件监听...');
         const { listen } = await import('@tauri-apps/api/event');
 
         unlisten = await listen<string>('pip-canvas-update', (event) => {
-          setDebugInfo(`收到数据: ${event.payload.substring(0, 50)}...`);
-
           if (canvasRef.current) {
             const img = new Image();
             img.onload = () => {
@@ -25,20 +40,13 @@ const PipWindow = () => {
                 canvasRef.current.width = img.width;
                 canvasRef.current.height = img.height;
                 ctx.drawImage(img, 0, 0);
-                setDebugInfo(`已渲染: ${img.width}x${img.height}`);
               }
-            };
-            img.onerror = () => {
-              setDebugInfo('图片加载失败');
             };
             img.src = event.payload;
           }
         });
-
-        setDebugInfo('事件监听已设置，等待数据...');
       } catch (err) {
         console.error('PiP setup error:', err);
-        setDebugInfo(`错误: ${err}`);
       }
     };
 
@@ -49,10 +57,32 @@ const PipWindow = () => {
     };
   }, []);
 
+  const handleDragStart = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    setDebugInfo('开始拖动...');
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const window = getCurrentWindow();
+      setDebugInfo('调用 startDragging...');
+      await window.startDragging();
+      setDebugInfo('拖动完成');
+    } catch (err) {
+      console.error('Failed to start dragging:', err);
+      setDebugInfo(`拖动失败: ${err}`);
+    }
+  };
+
   return (
     <div className="pip-window">
-      <canvas ref={canvasRef} className="pip-canvas" />
       <div className="pip-debug">{debugInfo}</div>
+      <div
+        className="pip-drag-handle"
+        onMouseDown={handleDragStart}
+        style={{ opacity }}
+      >
+        ⋮⋮
+      </div>
+      <canvas ref={canvasRef} className="pip-canvas" style={{ opacity }} />
     </div>
   );
 };
