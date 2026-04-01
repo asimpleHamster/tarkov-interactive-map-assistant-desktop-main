@@ -11,9 +11,11 @@ export interface SettingProps {
   directoryHandler?: string;
   tarkovGamePathHandler?: FileSystemDirectoryHandle;
   locationScale: boolean;
+  pipOpacity: number;
   onClickEftWatcherPath: () => void;
   onClickTarkovGamePathPath: () => void;
   onLocationScaleChange: (b: boolean) => void;
+  onPipOpacityChange: (opacity: number) => void;
 }
 
 const Index = (props: SettingProps) => {
@@ -21,9 +23,11 @@ const Index = (props: SettingProps) => {
     locationScale,
     directoryHandler,
     tarkovGamePathHandler,
+    pipOpacity,
     onLocationScaleChange,
     onClickEftWatcherPath,
     onClickTarkovGamePathPath,
+    onPipOpacityChange,
   } = props;
 
   const [lang] = useRecoilState(langState);
@@ -40,6 +44,12 @@ const Index = (props: SettingProps) => {
 
   const handleToggleLocationScale = () => {
     onLocationScaleChange(!locationScale);
+  };
+
+  const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value) || 100;
+    const clamped = Math.max(1, Math.min(100, value));
+    onPipOpacityChange(clamped);
   };
 
   return (
@@ -77,6 +87,18 @@ const Index = (props: SettingProps) => {
         >
           {t('setting.markerScale')} ({locationScale ? t('common.enable') : t('common.disable')})
         </button>
+        <div className="im-quicktools-modal-setting-input-group">
+          <label>{t('setting.windowOpacity')}</label>
+          <input
+            type="number"
+            min="1"
+            max="100"
+            value={pipOpacity}
+            onChange={handleOpacityChange}
+            className="im-quicktools-modal-setting-input"
+          />
+          <span>%</span>
+        </div>
       </div>
     </div>
   );

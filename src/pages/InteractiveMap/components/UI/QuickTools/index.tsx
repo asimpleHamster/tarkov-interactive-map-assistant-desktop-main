@@ -59,82 +59,18 @@ const Index = (
     setActiveModal(undefined);
   };
 
-  const forceStageRedraw = () => {
-    if (typeof (window as any).forceStageRefresh === 'function') {
-      (window as any).forceStageRefresh();
-    }
-  };
-
-  const openVideoPiP = async () => {
-    const canvasElement = document.querySelector('.im-stage canvas') as HTMLCanvasElement;
-    if (!canvasElement || !('captureStream' in canvasElement)) {
-      throw new Error('Map canvas not found or PiP not supported');
-    }
-
-    await new Promise<void>((resolve) => {
-      requestAnimationFrame(() => {
-        forceStageRedraw();
-        requestAnimationFrame(() => {
-          forceStageRedraw();
-          requestAnimationFrame(() => {
-            forceStageRedraw();
-            resolve();
-          });
-        });
-      });
-    });
-
-    const stream = canvasElement.captureStream(30);
-    const video = document.createElement('video');
-    video.srcObject = stream;
-    video.muted = true;
-    video.playsInline = true;
-    await video.play();
-    forceStageRedraw();
-    await new Promise((r) => setTimeout(r, 100));
-    await video.requestPictureInPicture();
-    (window as any)._pipVideo = video;
-    video.addEventListener('leavepictureinpicture', () => {
-      setPipActiveRef.current(false);
-      stream.getTracks().forEach((track) => track.stop());
-      video.srcObject = null;
-      (window as any)._pipVideo = null;
-    });
-  };
-
-  const closeVideoPiP = async () => {
-    try {
-      await document.exitPictureInPicture();
-    } finally {
-      const video = (window as any)._pipVideo;
-      if (video?.srcObject) {
-        (video.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
-        video.srcObject = null;
-      }
-      (window as any)._pipVideo = null;
-    }
-  };
-
   const handleTogglePiP = async () => {
     try {
-      if (document.pictureInPictureElement) {
-        try {
-          await closeVideoPiP();
-        } finally {
-          setPipActive(false);
-        }
-        return;
-      }
+      const { invoke } = await import('@tauri-apps/api/core');
 
-      const canvasElement = document.querySelector('.im-stage canvas') as HTMLCanvasElement;
-      if (!canvasElement || !('captureStream' in canvasElement)) {
-        toast.error(t('pip.canvasNotFound'));
-        return;
+      if (pipActive) {
+        await invoke('close_pip_window');
+        setPipActive(false);
+      } else {
+        await invoke('open_pip_window');
+        setPipActive(true);
+        toast.info(t('pip.enabled'));
       }
-
-      await openVideoPiP();
-      setPipActive(true);
-      toast.info(t('pip.enabled'));
     } catch (error) {
       console.error('PiP error:', error);
       setPipActive(false);
@@ -195,6 +131,59 @@ const Index = (
       unlistenFn?.();
     };
   }, []);
+
+  useEffect(() => {
+    let intervalId: number | null = null;
+
+    if (pipActive) {
+      const sendCanvasData = async () => {
+        try {
+          const canvasElement = document.querySelector('.im-stage canvas') as HTMLCanvasElement;
+          if (!canvasElement) {
+            console.log('[PiP] Canvas not found');
+            return;
+          }
+
+          const cropRatio = 0.7;
+          const sourceWidth = canvasElement.width * cropRatio;
+          const sourceHeight = canvasElement.height * cropRatio;
+          const sourceX = (canvasElement.width - sourceWidth) / 2;
+          const sourceY = (canvasElement.height - sourceHeight) / 2;
+
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = sourceWidth;
+          tempCanvas.height = sourceHeight;
+          const ctx = tempCanvas.getContext('2d');
+
+          if (ctx) {
+            ctx.drawImage(
+              canvasElement,
+              sourceX, sourceY, sourceWidth, sourceHeight,
+              0, 0, sourceWidth, sourceHeight,
+            );
+
+            const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.8);
+            const { emit } = await import('@tauri-apps/api/event');
+            await emit('pip-canvas-update', dataUrl);
+            console.log('[PiP] Sent canvas data:', sourceWidth, 'x', sourceHeight);
+          }
+        } catch (error) {
+          console.error('[PiP] Failed to send canvas data:', error);
+        }
+      };
+
+      console.log('[PiP] Starting canvas stream');
+      sendCanvasData();
+      intervalId = window.setInterval(sendCanvasData, 200);
+    }
+
+    return () => {
+      if (intervalId) {
+        console.log('[PiP] Stopping canvas stream');
+        clearInterval(intervalId);
+      }
+    };
+  }, [pipActive]);
 
   return (
     <div className="im-quicktools">

@@ -1,5 +1,5 @@
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { HashRouter } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 
 import packageJson from 'package.json';
@@ -32,9 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
     ReactDOM.createRoot(root).render(
       <RecoilRoot>
         <ErrorBoundary>
-          <BrowserRouter>
+          <HashRouter>
             <Router />
-          </BrowserRouter>
+          </HashRouter>
           <ToastContainer
             position="bottom-right"
             autoClose={3000}

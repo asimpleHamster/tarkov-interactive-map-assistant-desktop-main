@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 
 import InteractiveMap from '@/pages/InteractiveMap';
 import Notfound from '@/pages/NotFound';
+import PipWindow from '@/pages/PipWindow';
 import LayoutBase from '@/components/Layout/base';
 
 const Router = () => {
@@ -11,6 +12,7 @@ const Router = () => {
       <Route path="/" element={<LayoutBase />}>
         <Route path="interactive" element={<InteractiveMap />} />
       </Route>
+      <Route path="/pip" element={<PipWindow />} />
       <Route path="*" element={<Notfound />} />
     </Routes>
   );

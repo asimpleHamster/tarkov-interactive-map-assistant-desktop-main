@@ -1,0 +1,48 @@
+.pip-window {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.pip-canvas {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.pip-debug {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: #0f0;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 5px 10px;
+  border-radius: 4px;
+  z-index: 1000;
+}
+
+.pip-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  color: #fff;
+  font-size: 16px;
+}
+
+.pip-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  color: #f00;
+  font-size: 16px;
+}

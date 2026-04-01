@@ -93,6 +93,9 @@ const Index = () => {
   const [locationScale, setLocationScale] = useLocalStorageState<boolean>('im-locationScale', {
     defaultValue: true,
   });
+  const [pipOpacity, setPipOpacity] = useLocalStorageState<number>('im-pipOpacity', {
+    defaultValue: 100,
+  });
 
   const [strokeType, setStrokeType] = useState<InteractiveMap.StrokeType>('drag');
   const [strokeColor, setStrokeColor] = useLocalStorageState<string>('im-strokeColor', {
@@ -317,6 +320,19 @@ const Index = () => {
 
   const handleLocationScaleChange = (_b: boolean) => {
     setLocationScale(_b);
+  };
+
+  const handlePipOpacityChange = async (opacity: number) => {
+    setPipOpacity(opacity);
+    try {
+      const { getWebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+      const pipWindow = getWebviewWindow('pip');
+      if (pipWindow) {
+        await pipWindow.setOpacity(opacity / 100);
+      }
+    } catch (error) {
+      console.error('Failed to set PiP opacity:', error);
+    }
   };
 
   const handleStrokeTypeChange = (_strokeType: InteractiveMap.StrokeType) => {
@@ -559,6 +575,7 @@ const Index = () => {
                   directoryHandler={directoryHandler}
                   tarkovGamePathHandler={tarkovGamePathHandler}
                   locationScale={locationScale}
+                  pipOpacity={pipOpacity}
                   resolution={resolution}
                   isMobile={isMobile}
                   setQuickSearchShow={setQuickSearchShow}
@@ -575,6 +592,7 @@ const Index = () => {
                   onClickEftWatcherPath={handleClickEftWatcherPath}
                   onClickTarkovGamePathPath={handleClickTarkovGamePath}
                   onLocationScaleChange={handleLocationScaleChange}
+                  onPipOpacityChange={handlePipOpacityChange}
                   onMapInfoActive={handleMapInfoActive}
                 />
                 {resolution.width > 1280 && <Coordinate {...utils} position={cursorPosition} />}

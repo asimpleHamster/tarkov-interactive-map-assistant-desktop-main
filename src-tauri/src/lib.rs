@@ -134,6 +134,41 @@ fn get_tarkov_game_path(state: tauri::State<AppState>) -> String {
     game_path.clone()
 }
 
+#[tauri::command]
+async fn open_pip_window(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+
+    if let Some(_) = app.get_webview_window("pip") {
+        return Ok(());
+    }
+
+    tauri::WebviewWindowBuilder::new(
+        &app,
+        "pip",
+        tauri::WebviewUrl::App("index.html#/pip".into())
+    )
+    .title("Map PiP")
+    .inner_size(600.0, 450.0)
+    .decorations(true)
+    .always_on_top(true)
+    .resizable(true)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn close_pip_window(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+
+    if let Some(window) = app.get_webview_window("pip") {
+        window.close().map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
 fn resolve_application_log_path(game_root: &str) -> Option<PathBuf> {
     let root = Path::new(game_root);
     if !root.is_dir() {
@@ -523,7 +558,9 @@ pub fn run() {
             set_screenshot_path,
             get_screenshot_path,
             set_tarkov_game_path,
-            get_tarkov_game_path
+            get_tarkov_game_path,
+            open_pip_window,
+            close_pip_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

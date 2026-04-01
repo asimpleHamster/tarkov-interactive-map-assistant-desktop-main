@@ -40,6 +40,18 @@
             "fs:allow-exists",
             "fs:allow-read-text-file"
           ]
+        },
+        {
+          "identifier": "pip-capability",
+          "description": "Capability for the PiP window",
+          "windows": [
+            "pip"
+          ],
+          "permissions": [
+            "core:default",
+            "core:event:allow-listen",
+            "core:event:allow-emit"
+          ]
         }
       ]
     },
