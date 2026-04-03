@@ -36,6 +36,7 @@ const Index = (props: SpawnsProps & InteractiveMap.UtilProps) => {
     heightRange,
     real2imagePos,
     show,
+    iconScale = 1,
   } = props;
   const bosses = useMemo(() => {
     const map: { [key: string]: SpawnBoss[] } = {};
@@ -104,7 +105,7 @@ const Index = (props: SpawnsProps & InteractiveMap.UtilProps) => {
                         ))}
                     </div>
                   ) : (
-                    `${spawn.zoneName}`
+                    spawn.zoneName
                   ),
                   mapScale,
                   position: {
@@ -118,10 +119,10 @@ const Index = (props: SpawnsProps & InteractiveMap.UtilProps) => {
               >
                 <Image
                   id={`im-spawn-image-${spawn.zoneName}-${spawn.position.x}-${spawn.position.z}`}
-                  x={real2imagePos.x(spawn.position.x) - 12 / mapScale}
-                  y={real2imagePos.y(spawn.position.z) - 20 / mapScale}
-                  width={24 / mapScale}
-                  height={24 / mapScale}
+                  x={real2imagePos.x(spawn.position.x) - (12 * iconScale) / mapScale}
+                  y={real2imagePos.y(spawn.position.z) - (20 * iconScale) / mapScale}
+                  width={(24 * iconScale) / mapScale}
+                  height={(24 * iconScale) / mapScale}
                   imageSrc={getIconCDN(`spawn_${spawnType}`)}
                 />
               </Group>

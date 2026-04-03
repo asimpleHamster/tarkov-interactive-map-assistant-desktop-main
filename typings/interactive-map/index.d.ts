@@ -183,6 +183,10 @@ declare namespace InteractiveMap {
     heightRange: number[];
     image2realPos: ImageTransformProps;
     real2imagePos: ImageTransformProps;
+    iconScale?: number;
+    textScale?: number;
+    minIconSize?: number;
+    minFontSize?: number;
   }
 
   interface DrawProps {

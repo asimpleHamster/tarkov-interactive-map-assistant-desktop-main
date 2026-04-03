@@ -3,7 +3,10 @@
     "allow": [
       "Bash(cargo check:*)",
       "Bash(cargo run:*)",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(python3)",
+      "WebFetch(domain:escapefromtarkov.fandom.com)",
+      "Bash(node:*)"
     ]
   }
 }

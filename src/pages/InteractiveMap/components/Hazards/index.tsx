@@ -19,6 +19,7 @@ const Index = React.memo((props: HazardsProps & InteractiveMap.UtilProps) => {
     heightRange,
     real2imagePos,
     show,
+    iconScale = 1,
   } = props;
 
   const [activeId, setActiveId] = useState<string>();
@@ -100,10 +101,10 @@ const Index = React.memo((props: HazardsProps & InteractiveMap.UtilProps) => {
                 />
                 <Image
                   id={`im-hazard-image-${hazard.name}-${hazard.position.x}-${hazard.position.z}`}
-                  x={real2imagePos.x(hazard.position.x) - 12 / mapScale}
-                  y={real2imagePos.y(hazard.position.z) - 12 / mapScale}
-                  width={24 / mapScale}
-                  height={24 / mapScale}
+                  x={real2imagePos.x(hazard.position.x) - (12 * iconScale) / mapScale}
+                  y={real2imagePos.y(hazard.position.z) - (12 * iconScale) / mapScale}
+                  width={(24 * iconScale) / mapScale}
+                  height={(24 * iconScale) / mapScale}
                   imageSrc={getIconCDN('hazard')}
                 />
               </Group>

@@ -30,6 +30,10 @@ const Index = (props: ExtractsProps & InteractiveMap.UtilProps) => {
     heightRange,
     real2imagePos,
     show,
+    iconScale = 1,
+    textScale = 1,
+    minIconSize = 0,
+    minFontSize = 0,
   } = props;
   if (baseMapStatus === 'loaded' && show.length > 0) {
     return (
@@ -63,10 +67,10 @@ const Index = (props: ExtractsProps & InteractiveMap.UtilProps) => {
               >
                 <Image
                   id={`im-extract-image-${extract.id}-${extract.position.x}-${extract.position.z}`}
-                  x={real2imagePos.x(extract.position.x) - 12 / mapScale}
-                  y={real2imagePos.y(extract.position.z) - 20 / mapScale}
-                  width={24 / mapScale}
-                  height={24 / mapScale}
+                  x={real2imagePos.x(extract.position.x) - (12 * iconScale) / mapScale}
+                  y={real2imagePos.y(extract.position.z) - (20 * iconScale) / mapScale}
+                  width={Math.max(minIconSize, (24 * iconScale) / mapScale)}
+                  height={Math.max(minIconSize, (24 * iconScale) / mapScale)}
                   imageSrc={getIconCDN(`extract_${extract.faction}`)}
                 />
                 <Text
@@ -75,14 +79,14 @@ const Index = (props: ExtractsProps & InteractiveMap.UtilProps) => {
                   y={real2imagePos.y(extract.position.z)}
                   fontFamily="JinBuTi"
                   text={displayName}
-                  fontSize={12 / mapScale}
+                  fontSize={Math.max(minFontSize, (12 * textScale) / mapScale)}
                   fill={extractColorMap[extract.faction]}
-                  width={600 / mapScale}
-                  offsetX={300 / mapScale}
+                  width={(600 * textScale) / mapScale}
+                  offsetX={(300 * textScale) / mapScale}
                   align="center"
                   shadowColor="#000000"
-                  shadowBlur={12 / mapScale}
-                  offsetY={-6 / mapScale}
+                  shadowBlur={(12 * textScale) / mapScale}
+                  offsetY={(-6 * textScale) / mapScale}
                   listening={false}
                 />
               </Group>

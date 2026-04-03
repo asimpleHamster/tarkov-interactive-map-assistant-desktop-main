@@ -1,4 +1,8 @@
 {
   "maxZoomScale": 18,
-  "minZoomScale": 0.5
+  "minZoomScale": 0.5,
+  "iconScale": 1.5,
+  "textScale": 1.2,
+  "minIconSize": 18,
+  "minFontSize": 11
 }

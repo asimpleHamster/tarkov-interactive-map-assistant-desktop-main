@@ -24,6 +24,7 @@ const Index = React.memo((props: LootContainersProps & InteractiveMap.UtilProps)
     heightRange,
     real2imagePos,
     show,
+    iconScale = 1,
   } = props;
   if (baseMapStatus === 'loaded' && show.length > 0) {
     return (
@@ -57,10 +58,10 @@ const Index = React.memo((props: LootContainersProps & InteractiveMap.UtilProps)
               >
                 <Image
                   id={`im-container-image-${lootType}-${lootContainer.position.x}-${lootContainer.position.z}`}
-                  x={real2imagePos.x(lootContainer.position.x) - 12 / mapScale}
-                  y={real2imagePos.y(lootContainer.position.z) - 12 / mapScale}
-                  width={24 / mapScale}
-                  height={24 / mapScale}
+                  x={real2imagePos.x(lootContainer.position.x) - (12 * iconScale) / mapScale}
+                  y={real2imagePos.y(lootContainer.position.z) - (12 * iconScale) / mapScale}
+                  width={(24 * iconScale) / mapScale}
+                  height={(24 * iconScale) / mapScale}
                   imageSrc={getIconCDN(`container_${lootContainer.lootContainer.normalizedName}`)}
                 />
               </Group>

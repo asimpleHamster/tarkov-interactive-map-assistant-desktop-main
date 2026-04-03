@@ -19,6 +19,7 @@ const Index = React.memo((props: StationaryWeaponsProps & InteractiveMap.UtilPro
     heightRange,
     real2imagePos,
     show,
+    iconScale = 1,
   } = props;
   if (baseMapStatus === 'loaded' && show.length > 0) {
     return (
@@ -54,10 +55,10 @@ const Index = React.memo((props: StationaryWeaponsProps & InteractiveMap.UtilPro
               >
                 <Image
                   id={`im-stationaryWeapon-image-${stationaryWeapon.stationaryWeapon.id}-${stationaryWeapon.position.x}-${stationaryWeapon.position.z}`}
-                  x={real2imagePos.x(stationaryWeapon.position.x) - 12 / mapScale}
-                  y={real2imagePos.y(stationaryWeapon.position.z) - 20 / mapScale}
-                  width={24 / mapScale}
-                  height={24 / mapScale}
+                  x={real2imagePos.x(stationaryWeapon.position.x) - (12 * iconScale) / mapScale}
+                  y={real2imagePos.y(stationaryWeapon.position.z) - (20 * iconScale) / mapScale}
+                  width={(24 * iconScale) / mapScale}
+                  height={(24 * iconScale) / mapScale}
                   imageSrc={getIconCDN('stationarygun')}
                 />
               </Group>

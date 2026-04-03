@@ -19,6 +19,7 @@ const Index = React.memo((props: LocksProps & InteractiveMap.UtilProps) => {
     heightRange,
     real2imagePos,
     show,
+    iconScale = 1,
   } = props;
   if (baseMapStatus === 'loaded' && show.length > 0) {
     return (
@@ -51,10 +52,10 @@ const Index = React.memo((props: LocksProps & InteractiveMap.UtilProps) => {
               >
                 <Image
                   id={`im-lock-image-${lock.lockType}-${lock.position.x}-${lock.position.z}`}
-                  x={real2imagePos.x(lock.position.x) - 12 / mapScale}
-                  y={real2imagePos.y(lock.position.z) - 20 / mapScale}
-                  width={20 / mapScale}
-                  height={20 / mapScale}
+                  x={real2imagePos.x(lock.position.x) - (12 * iconScale) / mapScale}
+                  y={real2imagePos.y(lock.position.z) - (20 * iconScale) / mapScale}
+                  width={(20 * iconScale) / mapScale}
+                  height={(20 * iconScale) / mapScale}
                   imageSrc={getIconCDN('lock')}
                 />
               </Group>

@@ -32,12 +32,16 @@ import { showContextMenu } from '../UI/ContextMenu';
 import './style.less';
 
 // Load zoom config
-const zoomConfig = { maxZoomScale: 6, minZoomScale: 0.5 };
+const zoomConfig = { maxZoomScale: 6, minZoomScale: 0.5, iconScale: 1.5, textScale: 1.5, minIconSize: 18, minFontSize: 11 };
 fetch('/big-config.json')
   .then((r) => r.json())
   .then((config) => {
     if (config.maxZoomScale) zoomConfig.maxZoomScale = config.maxZoomScale;
     if (config.minZoomScale) zoomConfig.minZoomScale = config.minZoomScale;
+    if (config.iconScale) zoomConfig.iconScale = config.iconScale;
+    if (config.textScale) zoomConfig.textScale = config.textScale;
+    if (config.minIconSize) zoomConfig.minIconSize = config.minIconSize;
+    if (config.minFontSize) zoomConfig.minFontSize = config.minFontSize;
   })
   .catch(() => console.warn('Failed to load zoom config, using defaults'));
 
@@ -155,6 +159,10 @@ const Index = (props: CanvasProps & InteractiveMap.DrawProps) => {
     heightRange,
     image2realPos,
     real2imagePos,
+    iconScale: zoomConfig.iconScale,
+    textScale: zoomConfig.textScale,
+    minIconSize: zoomConfig.minIconSize,
+    minFontSize: zoomConfig.minFontSize,
   }), [
     effectiveStatus,
     baseScale,
