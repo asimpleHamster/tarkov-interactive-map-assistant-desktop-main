@@ -280,6 +280,207 @@ fn parse_raid_line(text: &str) -> Option<RaidLogEvent> {
     })
 }
 
+// ── Monitor control (Windows only) ──────────────────────────────────────────
+
+#[cfg(windows)]
+mod monitor_ctrl {
+    use serde::Serialize;
+    use windows::Win32::Foundation::{BOOL, LPARAM, RECT};
+    use windows::Win32::Graphics::Gdi::{
+        CreateDCW, DeleteDC, EnumDisplayMonitors, GetMonitorInfoW, HDC,
+        HMONITOR, MONITORINFO, MONITORINFOEXW,
+    };
+    use windows::Win32::UI::ColorSystem::SetDeviceGammaRamp;
+
+    #[derive(Clone, Serialize)]
+    pub struct MonitorItem {
+        pub index: usize,
+        pub name: String,
+        pub device: String,
+    }
+
+    pub fn enumerate() -> Vec<MonitorItem> {
+        let mut list: Vec<MonitorItem> = Vec::new();
+        unsafe {
+            EnumDisplayMonitors(
+                HDC::default(),
+                None,
+                Some(enum_proc),
+                LPARAM(&mut list as *mut _ as isize),
+            );
+        }
+        list
+    }
+
+    unsafe extern "system" fn enum_proc(
+        hmonitor: HMONITOR,
+        _hdc: HDC,
+        _rect: *mut RECT,
+        lparam: LPARAM,
+    ) -> BOOL {
+        let list = &mut *(lparam.0 as *mut Vec<MonitorItem>);
+        let mut info: MONITORINFOEXW = std::mem::zeroed();
+        info.monitorInfo.cbSize = std::mem::size_of::<MONITORINFOEXW>() as u32;
+        if GetMonitorInfoW(
+            hmonitor,
+            &mut info.monitorInfo as *mut _ as *mut MONITORINFO,
+        )
+        .as_bool()
+        {
+            let device = String::from_utf16_lossy(&info.szDevice)
+                .trim_end_matches('\0')
+                .to_string();
+            let index = list.len();
+            list.push(MonitorItem {
+                index,
+                name: format!("屏幕 {}", index + 1),
+                device,
+            });
+        }
+        BOOL(1)
+    }
+
+    fn build_ramp(gamma: f64, brightness: f64, contrast: f64, channel_scale: f64) -> [u16; 256] {
+        let mut ramp = [0u16; 256];
+        for i in 0usize..256 {
+            let n = i as f64 / 255.0;
+            // gamma correction
+            let g = n.powf(1.0 / gamma.max(0.01));
+            // brightness (100 = neutral)
+            let b = g * (brightness / 100.0);
+            // contrast (100 = neutral): stretch around midpoint
+            let c = (b - 0.5) * (contrast / 100.0) + 0.5;
+            // per-channel scale (128 = neutral → 1.0)
+            let v = c * channel_scale;
+            ramp[i] = (v.clamp(0.0, 1.0) * 65535.0) as u16;
+        }
+        ramp
+    }
+
+    pub fn set_gamma_ramp(
+        device: &str,
+        gamma: f64,
+        brightness: f64,
+        contrast: f64,
+        red: f64,
+        green: f64,
+        blue: f64,
+    ) -> bool {
+        let r = build_ramp(gamma, brightness, contrast, red / 128.0);
+        let g = build_ramp(gamma, brightness, contrast, green / 128.0);
+        let b = build_ramp(gamma, brightness, contrast, blue / 128.0);
+
+        let mut ramp_data = [0u16; 768];
+        ramp_data[0..256].copy_from_slice(&r);
+        ramp_data[256..512].copy_from_slice(&g);
+        ramp_data[512..768].copy_from_slice(&b);
+
+        unsafe {
+            let wide: Vec<u16> = device.encode_utf16().chain(std::iter::once(0)).collect();
+            let hdc = CreateDCW(
+                windows::core::PCWSTR(wide.as_ptr()),
+                windows::core::PCWSTR::null(),
+                windows::core::PCWSTR::null(),
+                None,
+            );
+            if hdc.is_invalid() {
+                return false;
+            }
+            let ok = SetDeviceGammaRamp(hdc, ramp_data.as_ptr() as *const _).as_bool();
+            let _ = DeleteDC(hdc);
+            ok
+        }
+    }
+
+    pub fn reset_gamma_ramp(device: &str) -> bool {
+        // Linear ramp: ramp[i] = i * 257  (maps 0..255 → 0..65535)
+        let linear: [u16; 256] = std::array::from_fn(|i| (i as u16) * 257);
+        let mut ramp_data = [0u16; 768];
+        ramp_data[0..256].copy_from_slice(&linear);
+        ramp_data[256..512].copy_from_slice(&linear);
+        ramp_data[512..768].copy_from_slice(&linear);
+
+        unsafe {
+            let wide: Vec<u16> = device.encode_utf16().chain(std::iter::once(0)).collect();
+            let hdc = CreateDCW(
+                windows::core::PCWSTR(wide.as_ptr()),
+                windows::core::PCWSTR::null(),
+                windows::core::PCWSTR::null(),
+                None,
+            );
+            if hdc.is_invalid() {
+                return false;
+            }
+            let ok = SetDeviceGammaRamp(hdc, ramp_data.as_ptr() as *const _).as_bool();
+            let _ = DeleteDC(hdc);
+            ok
+        }
+    }
+}
+
+#[tauri::command]
+fn get_monitors() -> Vec<serde_json::Value> {
+    #[cfg(windows)]
+    {
+        monitor_ctrl::enumerate()
+            .into_iter()
+            .map(|m| {
+                serde_json::json!({
+                    "index": m.index,
+                    "name": m.name,
+                    "device": m.device,
+                })
+            })
+            .collect()
+    }
+    #[cfg(not(windows))]
+    {
+        vec![serde_json::json!({"index": 0, "name": "屏幕 1", "device": ""})]
+    }
+}
+
+#[tauri::command]
+fn set_monitor_params(
+    device: String,
+    gamma: f64,
+    brightness: f64,
+    contrast: f64,
+    red: f64,
+    green: f64,
+    blue: f64,
+) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        if monitor_ctrl::set_gamma_ramp(&device, gamma, brightness, contrast, red, green, blue) {
+            Ok(())
+        } else {
+            Err(format!("SetDeviceGammaRamp failed for {}", device))
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (device, gamma, brightness, contrast, red, green, blue);
+        Ok(())
+    }
+}
+
+#[tauri::command]
+fn reset_monitor_params(device: String) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        if monitor_ctrl::reset_gamma_ramp(&device) {
+            Ok(())
+        } else {
+            Err(format!("Reset gamma ramp failed for {}", device))
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = device;
+        Ok(())
+    }
+}
+
 fn cleanup_screenshot_pngs(screenshot_path: &str) {
     if screenshot_path.is_empty() {
         return;
@@ -561,7 +762,10 @@ pub fn run() {
             set_tarkov_game_path,
             get_tarkov_game_path,
             open_pip_window,
-            close_pip_window
+            close_pip_window,
+            get_monitors,
+            set_monitor_params,
+            reset_monitor_params,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

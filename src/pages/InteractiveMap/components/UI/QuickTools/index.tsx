@@ -12,6 +12,7 @@ import Icon from '@/components/Icon';
 import DrawSetting, { DrawSettingProps } from '../DrawSetting';
 import EraserSetting, { EraserSettingProps } from '../EraserSetting';
 import MarkerSelect, { MarkerSelectProps } from '../MarkerSelect';
+import ScreenAdjust from '../ScreenAdjust';
 import Setting, { SettingProps } from '../Setting';
 
 import './style.less';
@@ -272,6 +273,26 @@ const Index = (
         <div className="im-quicktools-list-item" onClick={() => setActiveModal('setting')}>
           <Icon type="icon-settings-fill" />
         </div>
+        <div
+          className={classNames('im-quicktools-list-item', {
+            active: activeModal === 'screenAdjust',
+          })}
+          onClick={() => setActiveModal('screenAdjust')}
+          title={t('screenAdjust.title')}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            width="20"
+            height="20"
+            style={{ pointerEvents: 'none' }}
+          >
+            <path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z" />
+            <circle cx="12" cy="11" r="2" />
+            <path d="M12 7v1.5M12 13.5V15M8.5 11H7M17 11h-1.5M9.76 8.76l-1.06-1.06M15.3 14.3l-1.06-1.06M9.76 13.24l-1.06 1.06M15.3 7.7l-1.06 1.06" stroke="currentColor" strokeWidth="1" fill="none" />
+          </svg>
+        </div>
       </div>
       <div
         className={classNames('im-quicktools-modal', {
@@ -283,6 +304,7 @@ const Index = (
         {activeModal === 'draw' && <DrawSetting {...props} />}
         {activeModal === 'eraser' && <EraserSetting {...props} />}
         {activeModal === 'setting' && <Setting {...props} />}
+        {activeModal === 'screenAdjust' && <ScreenAdjust />}
       </div>
     </div>
   );

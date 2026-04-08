@@ -248,6 +248,6 @@ declare namespace InteractiveMap {
   type StrokeType = 'drag' | 'draw' | 'eraser' | 'ruler';
   type OperationType = -1 | 0 | 1 | 2;
 
-  type QuickTools = 'marker' | 'draw' | 'eraser' | 'setting';
+  type QuickTools = 'marker' | 'draw' | 'eraser' | 'setting' | 'screenAdjust';
   type AdditionFunc = 'tradertimer';
 }

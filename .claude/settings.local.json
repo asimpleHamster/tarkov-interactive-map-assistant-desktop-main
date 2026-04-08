@@ -6,7 +6,13 @@
       "Bash(xargs grep:*)",
       "Bash(python3)",
       "WebFetch(domain:escapefromtarkov.fandom.com)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "WebSearch",
+      "WebFetch(domain:users.rust-lang.org)",
+      "WebFetch(domain:gist.github.com)",
+      "WebFetch(domain:microsoft.github.io)",
+      "Bash(cargo doc:*)",
+      "Bash(cargo add:*)"
     ]
   }
 }

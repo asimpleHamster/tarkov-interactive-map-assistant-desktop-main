@@ -96,6 +96,26 @@ export default {
     others: '其他',
   },
 
+  // Screen Adjust
+  screenAdjust: {
+    title: '调节屏幕参数',
+    screen: '屏幕',
+    globalAttrs: '全局属性调整',
+    gamma: '伽马 (Gamma)',
+    brightness: '亮度 (Bright)',
+    contrast: '对比度 (Contr)',
+    colorChannels: '色彩通道调节',
+    defaultHint: '默认128',
+    red: '红色通道 (Red)',
+    green: '绿色通道 (Green)',
+    blue: '蓝色通道 (Blue)',
+    presets: '配置列表',
+    presetDefault: '原版',
+    presetBalanced: '均衡',
+    presetNight: '夜晚',
+    reset: '复原',
+  },
+
   // Settings
   setting: {
     title: '高级设置',
