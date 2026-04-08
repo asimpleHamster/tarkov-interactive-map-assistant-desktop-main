@@ -302,12 +302,15 @@ mod monitor_ctrl {
     pub fn enumerate() -> Vec<MonitorItem> {
         let mut list: Vec<MonitorItem> = Vec::new();
         unsafe {
-            EnumDisplayMonitors(
+            let success = EnumDisplayMonitors(
                 HDC::default(),
                 None,
                 Some(enum_proc),
                 LPARAM(&mut list as *mut _ as isize),
             );
+            if !success.as_bool() {
+                eprintln!("枚举显示器失败");
+            }
         }
         list
     }

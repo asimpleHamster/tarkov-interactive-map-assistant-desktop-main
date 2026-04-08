@@ -32,7 +32,14 @@ import { showContextMenu } from '../UI/ContextMenu';
 import './style.less';
 
 // Load zoom config
-const zoomConfig = { maxZoomScale: 6, minZoomScale: 0.5, iconScale: 1.5, textScale: 1.5, minIconSize: 18, minFontSize: 11 };
+const zoomConfig = {
+  maxZoomScale: 6,
+  minZoomScale: 0.5,
+  iconScale: 1.5,
+  textScale: 1.5,
+  minIconSize: 18,
+  minFontSize: 11,
+};
 fetch('/big-config.json')
   .then((r) => r.json())
   .then((config) => {

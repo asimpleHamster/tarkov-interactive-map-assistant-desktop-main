@@ -7,7 +7,8 @@ interface LabelsProps {
 }
 
 const Index = (props: LabelsProps & InteractiveMap.UtilProps) => {
-  const { labels = [], baseMapStatus, baseScale, heightRange, real2imagePos, show, textScale = 1 } = props;
+  const { labels = [], baseMapStatus, baseScale, heightRange,
+    real2imagePos, show, textScale = 1 } = props;
   if (baseMapStatus === 'loaded' && show) {
     return (
       <Group>

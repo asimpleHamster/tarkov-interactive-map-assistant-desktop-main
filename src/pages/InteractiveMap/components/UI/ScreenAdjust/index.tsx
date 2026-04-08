@@ -109,20 +109,21 @@ const Index = () => {
         const items = list.length > 0 ? list : [{ index: 0, name: '屏幕 1', device: '' }];
         setMonitors(items);
 
-        // Restore saved params for every monitor
-        for (const m of items) {
-          const saved = loadParams(m.device);
-          const isDefault =
-            saved.brightness === DEFAULT_PARAMS.brightness &&
-            saved.contrast === DEFAULT_PARAMS.contrast &&
-            saved.gamma === DEFAULT_PARAMS.gamma &&
-            saved.red === DEFAULT_PARAMS.red &&
-            saved.green === DEFAULT_PARAMS.green &&
-            saved.blue === DEFAULT_PARAMS.blue;
-          if (!isDefault && m.device) {
-            await invokeSetParams(m.device, saved);
-          }
-        }
+        await Promise.all(
+          items.map(async (m) => {
+            const saved = loadParams(m.device);
+            const isDefault =
+              saved.brightness === DEFAULT_PARAMS.brightness &&
+              saved.contrast === DEFAULT_PARAMS.contrast &&
+              saved.gamma === DEFAULT_PARAMS.gamma &&
+              saved.red === DEFAULT_PARAMS.red &&
+              saved.green === DEFAULT_PARAMS.green &&
+              saved.blue === DEFAULT_PARAMS.blue;
+            if (!isDefault && m.device) {
+              await invokeSetParams(m.device, saved);
+            }
+          }),
+        );
 
         // Load first monitor's params into UI
         const first = items[0];
