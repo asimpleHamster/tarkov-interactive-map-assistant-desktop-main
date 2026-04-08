@@ -43,7 +43,7 @@ const PRESETS: Array<{ name: string; params: ScreenParams }> = [
   },
   {
     name: 'screenAdjust.presetNight',
-    params: { brightness: 70, contrast: 120, gamma: 0.8, red: 120, green: 115, blue: 108 },
+    params: { brightness: 218, contrast: 118, gamma: 1.18, red: 128, green: 128, blue: 128 },
   },
 ];
 
