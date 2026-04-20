@@ -4,5 +4,6 @@
   "iconScale": 1.5,
   "textScale": 1.2,
   "minIconSize": 18,
-  "minFontSize": 11
+  "minFontSize": 11,
+  "enableMShortcut": false
 }

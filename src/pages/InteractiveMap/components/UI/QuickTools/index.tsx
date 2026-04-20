@@ -17,6 +17,14 @@ import Setting, { SettingProps } from '../Setting';
 
 import './style.less';
 
+let enableMShortcut = true;
+fetch('/big-config.json')
+  .then((r) => r.json())
+  .then((config) => {
+    if (config.enableMShortcut === false) enableMShortcut = false;
+  })
+  .catch(() => {});
+
 interface QuickToolsProps {
   mapInfoActive: boolean;
   isMobile: boolean;
@@ -103,6 +111,7 @@ const Index = (
         e.preventDefault();
         setStrokeType('ruler');
       } else if (!e.ctrlKey && !e.metaKey && (e.key === 'm' || e.key === 'M')) {
+        if (!enableMShortcut) return;
         e.preventDefault();
         handleTogglePiPRef.current?.();
       }
